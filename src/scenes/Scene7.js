@@ -673,9 +673,18 @@ export class Scene7 {
 
     // Task C: Load final candy image (Dragon candy for Scene 7)
     const finalCandyImg = new Image();
-    finalCandyImg.onload = () => { this._finalCandyImg = finalCandyImg; this._finalCandyLoaded = true; };
-    finalCandyImg.onerror = () => { this._finalCandyLoaded = false; console.warn("Scene7 image failed to load", finalCandyImg.src); };
-    finalCandyImg.src = 'assets/scene7/final/Dragon candy.png';
+    finalCandyImg.onload = () => { 
+      this._finalCandyImg = finalCandyImg; 
+      this._finalCandyLoaded = true; 
+      console.log('[CandyComplete] final candy image loaded:', finalCandyImg.src);
+    };
+    finalCandyImg.onerror = () => { 
+      this._finalCandyLoaded = false; 
+      console.error('[CandyComplete] final candy image load error:', finalCandyImg.src); 
+    };
+    const finalCandyPath = '/assets/scene7/final/Dragon candy.png';
+    console.log('[CandyComplete] final candy image path:', finalCandyPath);
+    finalCandyImg.src = finalCandyPath;
 
     // Task G: Load success screen image
     const successImg = new Image();
@@ -1300,6 +1309,7 @@ export class Scene7 {
   _onPlayerSubmit() {
     if (this.playerSubmitted || this.completed) return;
 
+    console.log('[CandyComplete] finish clicked');
     this.playerSubmitted = true;
     this.completed = true;
     this._phase = "result"; // Show result first
@@ -2230,7 +2240,7 @@ export class Scene7 {
       const canvasDrawY = canvasAnchorY - finalHeight * this.SCENE7_FINAL_CANDY_ANCHOR_Y + SCENE7_FINAL_DRAGON_VISUAL_OFFSET_Y; // Apply upward offset
       
       // Task A: Debug logging to verify final candy placement
-      console.log("Scene7 final candy placement debug", {
+      console.log('[CandyComplete] final candy image render position', {
         stickAnchorX,
         stickAnchorY,
         canvasAnchorX,
@@ -2722,6 +2732,7 @@ export class Scene7 {
 
         // Task D: Wait 400ms then transition to final candy
         this._finalCandyTimeout = setTimeout(() => {
+          console.log('[CandyComplete] completion state entered');
           this._showFinalCandy = true;
           this._finalCandyAnimStartTime = performance.now();
           console.log('Scene7: Transitioning to final candy');

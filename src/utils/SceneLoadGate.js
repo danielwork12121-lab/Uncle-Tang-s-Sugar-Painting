@@ -159,6 +159,181 @@ const SCENE_CRITICAL_ASSETS = {
 };
 
 // ============================================================
+//  Forced Debug Loading Gate for Scene 2 (Cutscene 2)
+//  This is a special debug mode that FORCES a 10-second loading
+//  screen before Scene 2, even if assets are already cached.
+// ============================================================
+export async function forcedCutscene2Loading() {
+  console.log('[ForcedLoad] cutscene2 requested');
+  
+  return new Promise((resolve) => {
+    // Create overlay immediately
+    const overlay = document.createElement('div');
+    overlay.id = 'forced-cutscene2-loading';
+    overlay.style.cssText = `
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1a0e05 0%, #2d1f0f 50%, #1a0e05 100%);
+      color: #e8c170;
+      font-family: serif;
+      user-select: none;
+    `;
+    
+    // Prevent clicks from bypassing
+    overlay.style.pointerEvents = 'all';
+    overlay.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      console.log('[ForcedLoad] Click blocked during forced loading');
+    });
+    
+    console.log('[ForcedLoad] overlay shown');
+    
+    // Title
+    const title = document.createElement('div');
+    title.textContent = '糖画摊准备中...';
+    title.style.cssText = `
+      font-size: 32px;
+      margin-bottom: 16px;
+      text-shadow: 0 0 20px rgba(232,193,112,0.5);
+      animation: forcedLoadFadeIn 0.5s ease;
+    `;
+    overlay.appendChild(title);
+    
+    // Subtitle
+    const subtitle = document.createElement('div');
+    subtitle.textContent = '正在备好铜勺、糖浆和画板...';
+    subtitle.style.cssText = `
+      font-size: 16px;
+      margin-bottom: 32px;
+      opacity: 0.7;
+      animation: forcedLoadFadeIn 0.5s ease 0.1s both;
+    `;
+    overlay.appendChild(subtitle);
+    
+    // Loading indicator
+    const loading = document.createElement('div');
+    loading.textContent = '加载中...';
+    loading.style.cssText = `
+      font-size: 14px;
+      margin-bottom: 24px;
+      opacity: 0.5;
+      animation: forcedLoadPulse 1.5s ease-in-out infinite;
+    `;
+    overlay.appendChild(loading);
+    
+    // Rotating facts
+    const factElement = document.createElement('div');
+    factElement.textContent = SUGAR_PAINTING_FACTS[0];
+    factElement.style.cssText = `
+      font-size: 14px;
+      max-width: 600px;
+      text-align: center;
+      line-height: 1.6;
+      padding: 0 20px;
+      opacity: 0.6;
+      animation: forcedLoadFadeIn 0.5s ease;
+    `;
+    overlay.appendChild(factElement);
+    
+    // Add to document
+    document.body.appendChild(overlay);
+    console.log('[ForcedLoad] preloading cutscene2 assets');
+    
+    // Preload Scene 2 assets
+    const SCENE2_ASSETS = [
+      '/assets/scene2/background/Background.png',
+      '/assets/scene2/Backgrounds/without-stove.png',
+      '/assets/scene2/ui/sugar-bar-empty.png',
+      '/assets/scene2/audio/background-music.mp3',
+    ];
+    
+    let loadedCount = 0;
+    const totalAssets = SCENE2_ASSETS.length;
+    
+    SCENE2_ASSETS.forEach((src) => {
+      if (src.match(/\.(png|jpg|jpeg|gif|webp)$/i)) {
+        const img = new Image();
+        img.onload = () => {
+          loadedCount++;
+          console.log(`[ForcedLoad] loaded: ${src} (${loadedCount}/${totalAssets})`);
+        };
+        img.onerror = () => {
+          loadedCount++;
+          console.warn(`[ForcedLoad] failed asset: ${src}`);
+        };
+        img.src = src;
+      } else if (src.match(/\.(mp3|wav|ogg)$/i)) {
+        const audio = new Audio();
+        audio.addEventListener('canplaythrough', () => {
+          loadedCount++;
+          console.log(`[ForcedLoad] loaded: ${src} (${loadedCount}/${totalAssets})`);
+        }, { once: true });
+        audio.addEventListener('error', () => {
+          loadedCount++;
+          console.warn(`[ForcedLoad] failed asset: ${src}`);
+        }, { once: true });
+        audio.src = src;
+      }
+    });
+    
+    // Start rotating facts
+    let factIndex = 0;
+    const factInterval = setInterval(() => {
+      factIndex = (factIndex + 1) % SUGAR_PAINTING_FACTS.length;
+      factElement.style.animation = 'none';
+      void factElement.offsetHeight;
+      factElement.style.animation = 'forcedLoadFadeIn 0.5s ease';
+      factElement.textContent = SUGAR_PAINTING_FACTS[factIndex];
+    }, 3000);
+    
+    // Add animation keyframes
+    if (!document.getElementById('forced-load-styles')) {
+      const style = document.createElement('style');
+      style.id = 'forced-load-styles';
+      style.textContent = `
+        @keyframes forcedLoadFadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 0.6; transform: translateY(0); }
+        }
+        @keyframes forcedLoadPulse {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 0.7; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    console.log('[ForcedLoad] forced wait started: 10000ms');
+    
+    // Force 10-second wait
+    setTimeout(() => {
+      console.log('[ForcedLoad] forced wait complete');
+      
+      // Cleanup
+      clearInterval(factInterval);
+      
+      // Fade out and remove overlay
+      overlay.style.transition = 'opacity 0.5s ease';
+      overlay.style.opacity = '0';
+      
+      setTimeout(() => {
+        if (overlay.parentNode) {
+          overlay.parentNode.removeChild(overlay);
+        }
+        console.log('[ForcedLoad] starting cutscene2');
+        resolve();
+      }, 500);
+    }, 10000);
+  });
+}
+
+// ============================================================
 //  Scene Load Gate class
 // ============================================================
 export class SceneLoadGate {

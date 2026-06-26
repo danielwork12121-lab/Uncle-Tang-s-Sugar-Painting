@@ -18,7 +18,7 @@ import { Scene7 } from './scenes/Scene7.js';
 import { Scene8 } from './scenes/Scene8.js';
 import { Scene9 } from './scenes/Scene9.js';
 import { AssetPreloader, INITIAL_PRELOAD_ASSETS, SCENE2_3_PRELOAD_ASSETS, SCENE4_5_PRELOAD_ASSETS, SCENE6_7_PRELOAD_ASSETS } from './utils/AssetPreloader.js';
-import { getSceneLoadGate } from './utils/SceneLoadGate.js';
+import { getSceneLoadGate, forcedCutscene2Loading } from './utils/SceneLoadGate.js';
 
 // Set to false to remove dev hotkeys in production
 const enableDevHotkeys = true;
@@ -77,15 +77,26 @@ class Game {
     this._stopCurrentScene();
 
     // HARD LOADING GATE: Show loading screen + enforce minimum duration
-    const loadGate = getSceneLoadGate();
-    try {
-      await loadGate.preload(sceneNumber);
-    } catch (e) {
-      console.warn(`[Game] Loading gate failed for scene ${sceneNumber}, continuing anyway`, e);
-    } finally {
-      // Ensure state is updated after loading
-      this._state = `scene${sceneNumber}`;
+    // SPECIAL DEBUG MODE: Force 10-second loading screen for Scene 2
+    if (sceneNumber === 2) {
+      console.log('[Game] Using FORCED loading gate for Scene 2');
+      try {
+        await forcedCutscene2Loading();
+      } catch (e) {
+        console.warn('[Game] Forced loading gate failed for Scene 2, continuing anyway', e);
+      }
+    } else {
+      // Normal loading gate for all other scenes
+      const loadGate = getSceneLoadGate();
+      try {
+        await loadGate.preload(sceneNumber);
+      } catch (e) {
+        console.warn(`[Game] Loading gate failed for scene ${sceneNumber}, continuing anyway`, e);
+      }
     }
+
+    // Update state after loading
+    this._state = `scene${sceneNumber}`;
 
     // Start new scene
     console.log(`[Game] Starting scene ${sceneNumber}`);

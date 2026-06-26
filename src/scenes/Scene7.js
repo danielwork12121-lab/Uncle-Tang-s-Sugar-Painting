@@ -660,9 +660,16 @@ export class Scene7 {
 
     // Load stick image for stick placement phase
     const stickImg = new Image();
-    stickImg.onload = () => { this._stickImg = stickImg; this._stickLoaded = true; };
-    stickImg.onerror = () => { this._stickLoaded = false; console.warn("Scene7 image failed to load", stickImg.src); };
-    stickImg.src = 'Animations/Button 5/Stick/Stick.png';
+    stickImg.onload = () => { 
+      console.log('[Stick] stick image loaded:', stickImg.src);
+      this._stickImg = stickImg; 
+      this._stickLoaded = true; 
+    };
+    stickImg.onerror = () => { 
+      console.error('[Stick] image load error:', stickImg.src); 
+      this._stickLoaded = false; 
+    };
+    stickImg.src = '/assets/stick/stick.png';
 
     // Task C: Load final candy image (Dragon candy for Scene 7)
     const finalCandyImg = new Image();
@@ -873,6 +880,7 @@ export class Scene7 {
             stickTargetY: this._stickTargetY
           });
 
+          console.log('[Stick] stick clicked, animation started');
           this._stickState = "flying";
           this._stickAnimStartTime = performance.now();
 
@@ -1316,6 +1324,7 @@ export class Scene7 {
 
     // Transition to stick placement phase after a short delay
     this._stickPlacementTimeout = setTimeout(() => {
+      console.log('[Stick] stick step entered');
       this._phase = "stickPlacement";
       this._showStickPlacementHint = true;
       this._stickState = "idle";
@@ -2708,6 +2717,7 @@ export class Scene7 {
         this._stickPlacementComplete = true;
         this._showStickPlacementHint = false;
         this._showNotification('糖画完成！', '#ffd700', 200);
+        console.log('[Stick] animation completed');
         console.log('Scene7: Stick landed');
 
         // Task D: Wait 400ms then transition to final candy

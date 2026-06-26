@@ -32,7 +32,11 @@
 
 // --- Asset paths served by Vite from /public ---
 const START_VIDEO_SRC = '/assets/start/Start video.mov';
+// Note: final-beginning-scene.mp4 is actually a .mov file with wrong extension
+// If this video fails to load, the error handler will show hand pointer and allow continuation
 const VIDEO_SRC = '/assets/animations/act1/final-beginning-scene.mp4';
+// Fallback: try alternative path if main video fails
+const VIDEO_SRC_FALLBACK = '/assets/animations/act1/final-beginning-scene-fixed.mp4';
 // Cache-busting query param ensures the updated hand pointer is loaded
 const HAND_POINTER_SRC = '/assets/ui/handpointer.png';
 
@@ -282,6 +286,17 @@ export class Act1Scene {
 
     this.video.addEventListener('error', (e) => {
       console.error('[Act1Scene] Video failed to load:', VIDEO_SRC, e);
+      // Try fallback video if available
+      if (this.video.src !== VIDEO_SRC_FALLBACK) {
+        console.log('[Act1Scene] Trying fallback video:', VIDEO_SRC_FALLBACK);
+        this.video.src = VIDEO_SRC_FALLBACK;
+        this.video.load();
+        return;
+      }
+      // If fallback also fails, show hand pointer and allow player to continue
+      console.error('[Act1Scene] Fallback video also failed, showing hand pointer');
+      this._videoEnded = true;
+      this._showHandPointer();
     });
 
     // When video ends, keep the final frame and show the hand pointer

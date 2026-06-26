@@ -2,8 +2,9 @@
  * Scene Load Gate — Preload gate for scene transitions
  * 
  * Shows a Chinese loading screen while preloading critical assets for the next scene.
- * Only appears if loading takes >300ms to avoid flashing.
  * Includes rotating Chinese sugar-painting facts.
+ * Scene 2 has forced 10-second minimum loading screen.
+ * Never gets stuck — all promises resolve with timeout fallbacks.
  */
 
 // ============================================================
@@ -21,6 +22,74 @@ const SUGAR_PAINTING_FACTS = [
   '糖画既是小吃，也是民间手工艺。',
   '好看的糖画，往往要兼顾速度、火候和构图。'
 ];
+
+// ============================================================
+//  Scene-specific loading configuration
+// ============================================================
+const SCENE_LOAD_CONFIG = {
+  // Scene 1: Act1 videos (already preloaded, lightweight)
+  1: {
+    forceShow: false,
+    minDurationMs: 0,
+    maxDurationMs: 10000,
+  },
+  
+  // Scene 2: Sugar-boiling mini-game (FORCE 10-second loading screen)
+  2: {
+    forceShow: true,
+    minDurationMs: 10000,  // Always show for at least 10 seconds
+    maxDurationMs: 15000,  // Max 15 seconds total
+  },
+  
+  // Scene 3: Candy sheet pouring
+  3: {
+    forceShow: false,
+    minDurationMs: 500,
+    maxDurationMs: 12000,
+  },
+  
+  // Scene 4: Cutscene video
+  4: {
+    forceShow: false,
+    minDurationMs: 300,
+    maxDurationMs: 10000,
+  },
+  
+  // Scene 5: Candy painting/drawing
+  5: {
+    forceShow: false,
+    minDurationMs: 500,
+    maxDurationMs: 12000,
+  },
+  
+  // Scene 6: Video cutscene
+  6: {
+    forceShow: false,
+    minDurationMs: 500,
+    maxDurationMs: 15000,
+  },
+  
+  // Scene 7: Dragon painting
+  7: {
+    forceShow: false,
+    minDurationMs: 500,
+    maxDurationMs: 12000,
+  },
+  
+  // Scene 8: Reward video
+  8: {
+    forceShow: false,
+    minDurationMs: 300,
+    maxDurationMs: 10000,
+  },
+  
+  // Scene 9: Ending/locked market
+  9: {
+    forceShow: false,
+    minDurationMs: 300,
+    maxDurationMs: 10000,
+  },
+};
 
 // ============================================================
 //  Critical assets for each scene
@@ -98,60 +167,134 @@ export class SceneLoadGate {
     this._factIndex = 0;
     this._factInterval = null;
     this._loadingTimeout = null;
-    this._showDelayTimeout = null;
+    this._maxTimeout = null;
     this._currentSceneNumber = null;
     this._onReady = null;
     this._loadStartTime = null;
     this._showReloadButton = false;
     this._aborted = false;
+    this._preloadComplete = false;
+    this._minDurationComplete = false;
+    this._overlayShown = false;
   }
 
   /**
    * Preload assets for a scene and show loading overlay if needed
    * @param {number} sceneNumber - Scene number (1-9)
-   * @returns {Promise<void>} - Resolves when critical assets are loaded
+   * @returns {Promise<void>} - Resolves when critical assets are loaded AND minimum duration elapsed
    */
   async preload(sceneNumber) {
+    const config = SCENE_LOAD_CONFIG[sceneNumber] || { forceShow: false, minDurationMs: 0, maxDurationMs: 10000 };
     const assets = SCENE_CRITICAL_ASSETS[sceneNumber] || [];
     
     console.log(`[SceneLoad] requested: Scene ${sceneNumber}`);
     
-    // Check if assets are already cached
-    const uncachedAssets = assets.filter(asset => !this._isAssetCached(asset.src));
+    // Reset state
+    this._aborted = false;
+    this._preloadComplete = false;
+    this._minDurationComplete = false;
+    this._overlayShown = false;
     
-    if (uncachedAssets.length === 0) {
-      console.log(`[SceneLoad] already ready: Scene ${sceneNumber}`);
-      return Promise.resolve();
-    }
-    
-    console.log(`[SceneLoad] loading start: Scene ${sceneNumber} (${uncachedAssets.length} assets)`);
+    // Clean up any existing overlay
+    this._cleanup();
     
     this._currentSceneNumber = sceneNumber;
     this._loadStartTime = performance.now();
-    this._aborted = false;
     
-    // Delay showing overlay by 300ms to avoid flashing for fast loads
-    return new Promise((resolve, reject) => {
+    // Check if assets are already cached (skip preload if all cached)
+    const uncachedAssets = config.forceShow ? assets : assets.filter(asset => !this._isAssetCached(asset.src));
+    
+    // Start preloading assets
+    const preloadPromise = this._preloadAssets(uncachedAssets);
+    
+    // Create minimum duration promise
+    const minDurationPromise = new Promise((resolve) => {
+      if (config.minDurationMs <= 0 && !config.forceShow) {
+        this._minDurationComplete = true;
+        resolve();
+      } else {
+        setTimeout(() => {
+          this._minDurationComplete = true;
+          console.log(`[SceneLoad] Scene${sceneNumber} minimum ${config.minDurationMs}ms complete`);
+          resolve();
+        }, config.minDurationMs);
+      }
+    });
+    
+    // Create max timeout promise (never-stuck guarantee)
+    const maxTimeoutPromise = new Promise((resolve) => {
+      this._maxTimeout = setTimeout(() => {
+        console.warn(`[SceneLoad] Scene${sceneNumber} max timeout reached, continuing anyway`);
+        this._preloadComplete = true;
+        this._minDurationComplete = true;
+        resolve();
+      }, config.maxDurationMs);
+    });
+    
+    // Return promise that waits for BOTH preload AND minimum duration
+    return new Promise((resolve) => {
       this._onReady = resolve;
       
-      this._showDelayTimeout = setTimeout(() => {
-        if (!this._aborted) {
-          this._showOverlay();
-        }
-      }, 300);
+      // Wait for preload to complete
+      preloadPromise.then(() => {
+        console.log(`[SceneLoad] Scene${sceneNumber} assets ready`);
+        this._preloadComplete = true;
+        this._checkReady();
+      }).catch(() => {
+        console.warn(`[SceneLoad] Scene${sceneNumber} preload failed, continuing anyway`);
+        this._preloadComplete = true;
+        this._checkReady();
+      });
       
-      // Start preloading
-      this._preloadAssets(uncachedAssets)
-        .then(() => {
-          this._onLoadComplete();
-          resolve();
-        })
-        .catch((error) => {
-          console.error(`[SceneLoad] failed: Scene ${sceneNumber}`, error);
-          this._onLoadComplete();
-          resolve(); // Still resolve to not block the game
-        });
+      // Wait for minimum duration
+      minDurationPromise.then(() => {
+        this._checkReady();
+      });
+      
+      // Race against max timeout
+      Promise.race([preloadPromise, minDurationPromise, maxTimeoutPromise]).then(() => {
+        // If max timeout wins, resolve immediately
+        if (!this._preloadComplete || !this._minDurationComplete) {
+          this._forceResolve();
+        }
+      });
+      
+      // Show overlay if forceShow or preload takes >300ms
+      if (config.forceShow) {
+        console.log(`[SceneLoad] Scene${sceneNumber} forced loading screen start`);
+        this._showOverlay();
+      } else if (uncachedAssets.length > 0) {
+        setTimeout(() => {
+          if (!this._aborted && !this._preloadComplete) {
+            this._showOverlay();
+          }
+        }, 300);
+      }
     });
+  }
+
+  /**
+   * Check if both preload and min duration are complete
+   */
+  _checkReady() {
+    if (this._preloadComplete && this._minDurationComplete && this._onReady) {
+      console.log(`[SceneLoad] overlay hidden`);
+      this._cleanup();
+      this._onReady();
+      this._onReady = null;
+    }
+  }
+
+  /**
+   * Force resolve (max timeout reached)
+   */
+  _forceResolve() {
+    if (this._onReady) {
+      console.log(`[SceneLoad] force resolving Scene ${this._currentSceneNumber}`);
+      this._cleanup();
+      this._onReady();
+      this._onReady = null;
+    }
   }
 
   /**
@@ -173,12 +316,17 @@ export class SceneLoadGate {
   }
 
   /**
-   * Preload multiple assets
+   * Preload multiple assets with timeout per asset
    * @param {Array} assets - Array of {src, type}
    * @returns {Promise<void>}
    */
   async _preloadAssets(assets) {
-    const timeoutMs = 20000; // 20 second timeout for all assets
+    if (assets.length === 0) {
+      this._preloadComplete = true;
+      return Promise.resolve();
+    }
+    
+    const timeoutMs = 15000; // 15 second timeout per asset
     
     const promises = assets.map(asset => {
       return Promise.race([
@@ -196,6 +344,7 @@ export class SceneLoadGate {
       }
     });
     
+    this._preloadComplete = true;
     return results;
   }
 
@@ -308,9 +457,10 @@ export class SceneLoadGate {
    * Show the loading overlay
    */
   _showOverlay() {
-    if (this._overlay) return;
+    if (this._overlay || this._aborted) return;
     
     console.log(`[SceneLoad] showing overlay for Scene ${this._currentSceneNumber}`);
+    this._overlayShown = true;
     
     this._overlay = document.createElement('div');
     this._overlay.id = 'scene-load-overlay';
@@ -401,11 +551,8 @@ export class SceneLoadGate {
     };
     this._reloadButton.onclick = () => {
       console.log(`[SceneLoad] retry clicked: Scene ${this._currentSceneNumber}`);
-      this._reloadButton.style.display = 'none';
-      this._showReloadButton = false;
-      this._factIndex = (this._factIndex + 1) % SUGAR_PAINTING_FACTS.length;
-      this._factElement.textContent = SUGAR_PAINTING_FACTS[this._factIndex];
-      this.preload(this._currentSceneNumber);
+      // Don't create new preload, just force resolve
+      this._forceResolve();
     };
     this._overlay.appendChild(this._reloadButton);
     
@@ -468,21 +615,18 @@ export class SceneLoadGate {
   }
 
   /**
-   * Called when loading is complete
+   * Clean up all timeouts and overlay
    */
-  _onLoadComplete() {
-    const loadTime = performance.now() - this._loadStartTime;
-    console.log(`[SceneLoad] loading complete: Scene ${this._currentSceneNumber} (${Math.round(loadTime)}ms)`);
-    
+  _cleanup() {
     // Clear timeouts
-    if (this._showDelayTimeout) {
-      clearTimeout(this._showDelayTimeout);
-      this._showDelayTimeout = null;
-    }
-    
     if (this._loadingTimeout) {
       clearTimeout(this._loadingTimeout);
       this._loadingTimeout = null;
+    }
+    
+    if (this._maxTimeout) {
+      clearTimeout(this._maxTimeout);
+      this._maxTimeout = null;
     }
     
     // Stop fact rotation
@@ -493,12 +637,6 @@ export class SceneLoadGate {
     
     // Hide overlay
     this._hideOverlay();
-    
-    // Resolve promise
-    if (this._onReady) {
-      this._onReady();
-      this._onReady = null;
-    }
   }
 
   /**
@@ -514,6 +652,7 @@ export class SceneLoadGate {
           this._overlay.parentNode.removeChild(this._overlay);
         }
         this._overlay = null;
+        this._overlayShown = false;
       }, 300);
     }
   }
@@ -524,23 +663,7 @@ export class SceneLoadGate {
   abort() {
     console.log('[SceneLoad] aborted');
     this._aborted = true;
-    
-    if (this._showDelayTimeout) {
-      clearTimeout(this._showDelayTimeout);
-      this._showDelayTimeout = null;
-    }
-    
-    if (this._loadingTimeout) {
-      clearTimeout(this._loadingTimeout);
-      this._loadingTimeout = null;
-    }
-    
-    if (this._factInterval) {
-      clearInterval(this._factInterval);
-      this._factInterval = null;
-    }
-    
-    this._hideOverlay();
+    this._cleanup();
     this._onReady = null;
   }
 }

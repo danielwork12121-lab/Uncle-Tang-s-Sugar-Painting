@@ -3,6 +3,10 @@
  *
  * Scene flow:
  *   Act 1 (animation) → Scene 2 (sugar-boiling mini-game) → Scene 3 (sugar-sheet drawing) → Scene 4 (cutscene) → Candy Making
+ *
+ * HARD GATE ENFORCEMENT:
+ *   ALL scene transitions MUST go through goToScene(sceneId)
+ *   NO exceptions allowed - this prevents bypassing the loading screen
  */
 import { Act1Scene } from './scenes/Act1Scene.js';
 import { Scene2 } from './scenes/Scene2.js';
@@ -25,6 +29,9 @@ class Game {
     this.currentScene = null;
     this.currentSceneNumber = 0;  // Track which scene number is active
 
+    // Game state machine (prevents re-entrant transitions)
+    this._state = 'init';  // 'init' | 'act1' | 'loading' | 'scene2' | 'scene3' | 'scene4' | 'scene5' | 'scene6' | 'scene7' | 'scene8' | 'scene9'
+
     // Background music instances (managed centrally)
     this._bgMusic = null;           // Scene 1 / intro music
     this._scene2BgMusic = null;     // Scene 2 cooking music
@@ -39,24 +46,57 @@ class Game {
     }
   }
 
-  /** Central scene transition function - stops current scene completely, then starts new scene */
-  async switchToScene(sceneNumber, options = {}) {
+  /**
+   * SINGLE ENTRY POINT for ALL scene transitions
+   * ALL transitions MUST go through this function - NO EXCEPTIONS
+   *
+   * Flow:
+   *   1. Set state to 'loading'
+   *   2. Show loading screen immediately
+   *   3. Force minimum 10-second wait (for Scene 2)
+   *   4. Preload target scene assets
+   *   5. Only after BOTH complete → enter scene
+   *
+   * @param {number} sceneNumber - Target scene number (1-9)
+   * @param {Object} options - Scene options (e.g., { mode: "practice" })
+   */
+  async goToScene(sceneNumber, options = {}) {
     const oldScene = this.currentSceneNumber;
-    console.log(`[Game] Switching scene: ${oldScene} → ${sceneNumber}`, options);
+    console.log(`[Game] goToScene: ${oldScene} → ${sceneNumber}`, options);
+
+    // STATE SAFETY: Prevent re-entrant transitions
+    if (this._state === 'loading') {
+      console.warn(`[Game] Already in loading state, ignoring transition to ${sceneNumber}`);
+      return;
+    }
+
+    // Set state to loading (LOCK)
+    this._state = 'loading';
 
     // Stop current scene completely
     this._stopCurrentScene();
 
-    // Preload next scene assets (shows loading gate if needed)
+    // HARD LOADING GATE: Show loading screen + enforce minimum duration
     const loadGate = getSceneLoadGate();
     try {
       await loadGate.preload(sceneNumber);
     } catch (e) {
-      console.warn(`[Game] Preload failed for scene ${sceneNumber}, continuing anyway`, e);
+      console.warn(`[Game] Loading gate failed for scene ${sceneNumber}, continuing anyway`, e);
+    } finally {
+      // Ensure state is updated after loading
+      this._state = `scene${sceneNumber}`;
     }
 
     // Start new scene
     console.log(`[Game] Starting scene ${sceneNumber}`);
+    this._startScene(sceneNumber, options);
+  }
+
+  /**
+   * Internal method to start a scene after loading gate completes
+   * DO NOT call this directly - always use goToScene()
+   */
+  _startScene(sceneNumber, options = {}) {
     switch (sceneNumber) {
       case 1:
         this._enterScene1Video();
@@ -88,7 +128,7 @@ class Game {
     }
 
     this.currentSceneNumber = sceneNumber;
-    console.log(`[Game] Scene switch complete: ${oldScene} → ${sceneNumber}`);
+    console.log(`[Game] Scene start complete: ${sceneNumber}`);
   }
 
   /** Stop current scene completely - cleanup all resources */
@@ -118,15 +158,17 @@ class Game {
 
   /** Enter Scene 1 (video) - stop all game music, let video audio play */
   _enterScene1Video() {
-    // Note: Cleanup is now handled by switchToScene()
+    // Note: Cleanup is now handled by goToScene()
     // This method should only create the new scene
 
     // Transition to Scene 1
     this.currentScene = new Act1Scene(this.appEl, () => {
-      // When video ends naturally, go to Scene 2 (which will start cooking music)
-      this.goToScene2();
+      // When video ends naturally OR skip is pressed, go to Scene 2
+      // MUST use goToScene() to enforce loading screen
+      this.goToScene(2);
     });
     console.log('[Game] Scene 1 (Act1) created');
+    this._state = 'act1';
 
     // Background preload Scene 2/3 assets
     setTimeout(() => {
@@ -136,7 +178,7 @@ class Game {
 
   /** Enter Scene 2 (cooking) - stop Scene 3 music, start cooking music */
   _enterScene2Cooking() {
-    // Note: Cleanup is now handled by switchToScene()
+    // Note: Cleanup is now handled by goToScene()
 
     // Start Scene 2 cooking background music
     this._initScene2Music();
@@ -157,7 +199,8 @@ class Game {
 
     // Transition to Scene 2
     this.currentScene = new Scene2(this.appEl, () => {
-      this.goToScene3();
+      // When Scene 2 completes, go to Scene 3 (MUST use goToScene)
+      this.goToScene(3);
     });
     console.log('[Game] Scene 2 (cooking) created');
 
@@ -167,7 +210,7 @@ class Game {
 
   /** Enter Scene 3 (candy pouring) - stop Scene 2 music, start candy pouring music */
   _enterScene3CandyPouring() {
-    // Note: Cleanup is now handled by switchToScene()
+    // Note: Cleanup is now handled by goToScene()
 
     // Transition to Scene 3
     this.currentScene = new Scene3(this.appEl,
@@ -175,7 +218,7 @@ class Game {
       () => {
         // Stop Scene 3 music when transitioning to next scene
         this._stopScene3Music();
-        this.switchToScene(4);
+        this.goToScene(4);
       },
       // onSuccess: show click prompt, wait for click before Scene 4
       () => {
@@ -192,12 +235,12 @@ class Game {
 
   /** Enter Scene 4 (cutscene) - stop all music, play video audio */
   _enterScene4Cutscene() {
-    // Note: Cleanup is now handled by switchToScene()
+    // Note: Cleanup is now handled by goToScene()
 
     // Transition to Scene 4
     this.currentScene = new Scene4(this.appEl, () => {
       // When video ends and user clicks, go to Scene 5 in practice mode
-      this.switchToScene(5, { mode: "practice" });
+      this.goToScene(5, { mode: "practice" });
     });
     console.log('[Game] Scene 4 (cutscene) created');
 
@@ -207,7 +250,7 @@ class Game {
 
   /** Enter Scene 5 (painting minigame) - stop all music */
   _enterScene5Painting(options = {}) {
-    // Note: Cleanup is now handled by switchToScene()
+    // Note: Cleanup is now handled by goToScene()
 
     const mode = options.mode || "practice"; // Default to practice mode
 
@@ -217,11 +260,11 @@ class Game {
       if (mode === "practice") {
         // Practice mode: after completion, go to Scene 6 cutscene
         console.log('[Main] Scene 5 (practice) completed, switching to Scene 6');
-        this.switchToScene(6);
+        this.goToScene(6);
       } else {
         // Order mode: after completion, go to Scene 7 (dragon painting)
         console.log('[Main] Scene 5 (order) completed, switching to Scene 7');
-        this.switchToScene(7);
+        this.goToScene(7);
       }
     }, { mode: mode });
 
@@ -230,13 +273,13 @@ class Game {
 
   /** Enter Scene 6 (cutscene) - stop all music, play video */
   _enterScene6Cutscene() {
-    // Note: Cleanup is now handled by switchToScene()
+    // Note: Cleanup is now handled by goToScene()
 
     // Transition to Scene 6
     this.currentScene = new Scene6(this.appEl, () => {
       // When Scene 6 completes, go to Scene 5 in order mode
       console.log('[Main] Scene 6 completed, switching to Scene 5 (order mode)');
-      this.switchToScene(5, { mode: "order" });
+      this.goToScene(5, { mode: "order" });
     });
 
     console.log('[Main] Scene 6 (cutscene) created');
@@ -244,13 +287,13 @@ class Game {
 
   /** Enter Scene 7 (dragon painting) - stop all music */
   _enterScene7DragonPainting() {
-    // Note: Cleanup is now handled by switchToScene()
+    // Note: Cleanup is now handled by goToScene()
 
     // Transition to Scene 7
     this.currentScene = new Scene7(this.appEl, () => {
       // When Scene 7 completes, transition to Scene 8 (reward video)
       console.log('[Main] Scene 7 completed, switching to Scene 8');
-      this.switchToScene(8);
+      this.goToScene(8);
     });
 
     console.log('[Main] Scene 7 (dragon painting) created');
@@ -258,13 +301,13 @@ class Game {
 
   /** Enter Scene 8 (reward video) - stop all music */
   _enterScene8RewardVideo() {
-    // Note: Cleanup is now handled by switchToScene()
+    // Note: Cleanup is now handled by goToScene()
 
     // Transition to Scene 8 (reward video)
     this.currentScene = new Scene8(this.appEl, () => {
       // When Scene 8 completes (reward sequence finished), go to Scene 9
       console.log('[Main] Scene 8 completed, switching to Scene 9');
-      this.switchToScene(9);
+      this.goToScene(9);
     });
 
     console.log('[Main] Scene 8 (reward video) created');
@@ -272,7 +315,7 @@ class Game {
 
   /** Enter Scene 9 (locked future market) - stop all music */
   _enterScene9LockedMarket() {
-    // Note: Cleanup is now handled by switchToScene()
+    // Note: Cleanup is now handled by goToScene()
 
     // Transition to Scene 9 (locked future market)
     this.currentScene = new Scene9(this.appEl, () => {
@@ -320,7 +363,7 @@ class Game {
     this.appEl.appendChild(wrap);
   }
 
-  /** Temporary dev hotkeys for testing scene transitions */
+  /** Temporary dev hotkeys for testing scene transitions - MUST go through goToScene() */
   _initDevHotkeys() {
     document.addEventListener('keydown', (e) => {
       // Don't trigger if user is typing in an input
@@ -329,47 +372,42 @@ class Game {
       switch (e.key) {
         case '1':
           e.preventDefault();
-          this.switchToScene(1);
+          this.goToScene(1);
           break;
         case '2':
           e.preventDefault();
-          this.switchToScene(2);
+          this.goToScene(2);
           break;
         case '3':
           e.preventDefault();
-          this.switchToScene(3);
+          this.goToScene(3);
           break;
         case '4':
           e.preventDefault();
-          this.switchToScene(4);
+          this.goToScene(4);
           break;
         case '5':
           e.preventDefault();
-          this.switchToScene(5);
+          this.goToScene(5);
           break;
         case '6':
           e.preventDefault();
-          this.switchToScene(6);
+          this.goToScene(6);
           break;
         case '7':
           e.preventDefault();
-          this.switchToScene(7);
+          this.goToScene(7);
           break;
         case '8':
           e.preventDefault();
-          this.switchToScene(8);
+          this.goToScene(8);
           break;
         case '9':
           e.preventDefault();
-          this.switchToScene(9);
+          this.goToScene(9);
           break;
       }
     });
-  }
-
-  /** Called when Act 1 animation ends or copper pot is clicked - route through central switch */
-  goToScene2() {
-    this.switchToScene(2);
   }
 
   /** Stop Scene 2 cooking music only */
@@ -453,9 +491,9 @@ class Game {
     }
   }
 
-  /** Transition into Scene 3 (sugar-sheet drawing) after Scene 2 success - route through central switch */
+  /** Transition into Scene 3 (sugar-sheet drawing) after Scene 2 success - MUST use goToScene() */
   goToScene3() {
-    this.switchToScene(3);
+    this.goToScene(3);
   }
 
   start() {

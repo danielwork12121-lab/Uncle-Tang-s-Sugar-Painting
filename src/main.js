@@ -13,6 +13,7 @@ import { Scene6 } from './scenes/Scene6.js';
 import { Scene7 } from './scenes/Scene7.js';
 import { Scene8 } from './scenes/Scene8.js';
 import { Scene9 } from './scenes/Scene9.js';
+import { AssetPreloader, INITIAL_PRELOAD_ASSETS, SCENE2_3_PRELOAD_ASSETS, SCENE4_5_PRELOAD_ASSETS, SCENE6_7_PRELOAD_ASSETS } from './utils/AssetPreloader.js';
 
 // Set to false to remove dev hotkeys in production
 const enableDevHotkeys = true;
@@ -28,6 +29,9 @@ class Game {
     this._scene2BgMusic = null;     // Scene 2 cooking music
     this._scene3BgMusic = null;     // Scene 3 candy pouring music
     this._scene3BgMusicStarted = false;
+
+    // Asset preloader (for silent background preloading)
+    this._preloader = new AssetPreloader();
 
     if (enableDevHotkeys) {
       this._initDevHotkeys();
@@ -114,6 +118,11 @@ class Game {
       this.goToScene2();
     });
     console.log('[Game] Scene 1 (Act1) created');
+
+    // Background preload Scene 2/3 assets
+    setTimeout(() => {
+      this._preloadScene2_3();
+    }, 2000); // Start preloading after 2s to not block video playback
   }
 
   /** Enter Scene 2 (cooking) - stop Scene 3 music, start cooking music */
@@ -142,6 +151,9 @@ class Game {
       this.goToScene3();
     });
     console.log('[Game] Scene 2 (cooking) created');
+
+    // Background preload Scene 4/5 assets
+    this._preloadScene4_5();
   }
 
   /** Enter Scene 3 (candy pouring) - stop Scene 2 music, start candy pouring music */
@@ -179,6 +191,9 @@ class Game {
       this.switchToScene(5, { mode: "practice" });
     });
     console.log('[Game] Scene 4 (cutscene) created');
+
+    // Background preload Scene 6/7 assets
+    this._preloadScene6_7();
   }
 
   /** Enter Scene 5 (painting minigame) - stop all music */
@@ -435,7 +450,73 @@ class Game {
   }
 
   start() {
+    // Start directly with Act1 video
     this._enterScene1Video();
+
+    // Silent background preload of critical assets (non-blocking)
+    this._preloader.setLabel('critical');
+    this._preloader.onProgress = (progress, loaded, total, result) => {
+      if (result && !result.success) {
+        console.warn(`[Preload] failed: ${result.src}`);
+      }
+    };
+    this._preloader.onComplete = (results, failed) => {
+      console.log('[Preload] critical complete');
+    };
+    this._preloader.preloadAssets(INITIAL_PRELOAD_ASSETS).catch(() => {
+      // Non-critical, ignore errors
+    });
+  }
+
+  /**
+   * Background preload for Scene 2/3 assets (call during Act1)
+   */
+  _preloadScene2_3() {
+    const preloader = new AssetPreloader();
+    preloader.setLabel('Scene2/3');
+    preloader.onProgress = (progress) => {
+      // Silent progress - only log failures
+    };
+    preloader.onComplete = (results, failed) => {
+      // Logging is done in AssetPreloader
+    };
+    preloader.preloadAssets(SCENE2_3_PRELOAD_ASSETS).catch(() => {
+      // Non-critical, ignore errors
+    });
+  }
+
+  /**
+   * Background preload for Scene 4/5 assets (call during Scene2)
+   */
+  _preloadScene4_5() {
+    const preloader = new AssetPreloader();
+    preloader.setLabel('Scene4/5');
+    preloader.onProgress = (progress) => {
+      // Silent progress - only log failures
+    };
+    preloader.onComplete = (results, failed) => {
+      // Logging is done in AssetPreloader
+    };
+    preloader.preloadAssets(SCENE4_5_PRELOAD_ASSETS).catch(() => {
+      // Non-critical, ignore errors
+    });
+  }
+
+  /**
+   * Background preload for Scene 6/7 assets (call during Scene4)
+   */
+  _preloadScene6_7() {
+    const preloader = new AssetPreloader();
+    preloader.setLabel('Scene6/7');
+    preloader.onProgress = (progress) => {
+      // Silent progress - only log failures
+    };
+    preloader.onComplete = (results, failed) => {
+      // Logging is done in AssetPreloader
+    };
+    preloader.preloadAssets(SCENE6_7_PRELOAD_ASSETS).catch(() => {
+      // Non-critical, ignore errors
+    });
   }
 }
 

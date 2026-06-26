@@ -31,12 +31,9 @@
  */
 
 // --- Asset paths served by Vite from /public ---
-// Start video: converted to H.264/AAC MP4 for browser compatibility
-const START_VIDEO_SRC = '/assets/start/Start video.mp4';
-// Main cutscene: converted to H.264/AAC MP4 with faststart for browser compatibility
-const VIDEO_SRC = '/assets/animations/act1/final-beginning-scene.mp4';
-// Fallback removed - video is now properly encoded
-// Cache-busting query param ensures the updated hand pointer is loaded
+// Using simple, stable, lowercase paths for deployment safety
+const START_VIDEO_SRC = '/assets/start/act1-first.mp4';
+const VIDEO_SRC = '/assets/start/act1-second.mp4';
 const HAND_POINTER_SRC = '/assets/ui/handpointer.png';
 
 export class Act1Scene {

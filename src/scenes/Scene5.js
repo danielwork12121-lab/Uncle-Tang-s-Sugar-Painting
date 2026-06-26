@@ -770,10 +770,15 @@ export class Scene5 {
           // Check if quantity meets requirement (mode-dependent)
           // In order mode, require exactly SCENE5_REQUIRED_QUANTITY (2)
           // In practice mode, allow any quantity >= SCENE5_MIN_PRODUCTION_QUANTITY
-          if (this.mode === "order" && this._productionQuantity < SCENE5_REQUIRED_QUANTITY) {
-            this._quantityFeedback = '客人要两个圆形糖画，请做满两个。';
-            this._quantityFeedbackTimer = performance.now();
-            return;
+          if (this.mode === "order") {
+            console.log(`[QuantityRule] Scene5 real: required 2, selected ${this._productionQuantity}`);
+            if (this._productionQuantity < SCENE5_REQUIRED_QUANTITY) {
+              this._quantityFeedback = '客人要两个圆形糖画，请做满两个。';
+              this._quantityFeedbackTimer = performance.now();
+              return;
+            }
+          } else {
+            console.log(`[QuantityRule] Scene5 practice: any quantity allowed (selected: ${this._productionQuantity})`);
           }
           // Task C: Start production animation sequence
           this._productionConfirmed = true;
@@ -1055,10 +1060,15 @@ export class Scene5 {
           // Check if quantity meets requirement (mode-dependent)
           // In order mode, require exactly SCENE5_REQUIRED_QUANTITY (2)
           // In practice mode, allow any quantity >= SCENE5_MIN_PRODUCTION_QUANTITY
-          if (this.mode === "order" && this._productionQuantity < SCENE5_REQUIRED_QUANTITY) {
-            this._quantityFeedback = '客人要两个圆形糖画，请做满两个。';
-            this._quantityFeedbackTimer = performance.now();
-            return;
+          if (this.mode === "order") {
+            console.log(`[QuantityRule] Scene5 real: required 2, selected ${this._productionQuantity}`);
+            if (this._productionQuantity < SCENE5_REQUIRED_QUANTITY) {
+              this._quantityFeedback = '客人要两个圆形糖画，请做满两个。';
+              this._quantityFeedbackTimer = performance.now();
+              return;
+            }
+          } else {
+            console.log(`[QuantityRule] Scene5 practice: any quantity allowed (selected: ${this._productionQuantity})`);
           }
           // Task C: Start production animation sequence
           this._productionConfirmed = true;
@@ -2743,9 +2753,29 @@ export class Scene5 {
     if (allDone && !this._productionComplete) {
       this._productionComplete = true;
       this._productionAnimating = false;
-      console.log('[Scene5Popup] success popup entered');
-      this._showSuccessScreen = true;
-      // Task F: Clear produced candies array for clean transition
+      
+      // Task: Conditionally show popup based on mode
+      if (this.mode === "practice") {
+        // Practice mode: show the "练手完毕，开始接单！" popup
+        console.log('[Scene5Mode] entered practice mode');
+        console.log('[Scene5Mode] practice popup shown');
+        console.log('[Scene5Popup] success popup entered');
+        this._showSuccessScreen = true;
+      } else {
+        // Order mode: skip popup, directly transition to Scene7
+        console.log('[Scene5Mode] entered real mode');
+        console.log('[Scene5Mode] practice popup skipped for real mode');
+        console.log('[Scene5] Order mode: skipping popup, directly calling onComplete');
+        // Task F: Clear produced candies array for clean transition
+        this._producedCandies = [];
+        // Directly call onComplete to transition to Scene7
+        if (this.onComplete) {
+          this.onComplete();
+        }
+        return;
+      }
+      
+      // Task F: Clear produced candies array for clean transition (only for practice mode)
       this._producedCandies = [];
       console.log("Scene5 production animation complete, showing success screen");
     }

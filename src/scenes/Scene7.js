@@ -829,6 +829,7 @@ export class Scene7 {
         // Check if clicked on 制作 button
         if (this._isPointInScene7Box(this._makeBtnRect, canvasX, canvasY, designX, designY)) {
           // Check if quantity meets requirement
+          console.log(`[QuantityRule] Scene7 dragon: required 1, selected ${this._productionQuantity}`);
           if (this._productionQuantity < SCENE7_REQUIRED_QUANTITY) {
             this._quantityFeedback = `客人要一个龙形糖画，请做满一个。`;
             this._quantityFeedbackTimer = performance.now();
@@ -1128,6 +1129,7 @@ export class Scene7 {
         // Check if touched on 制作 button
         if (this._isPointInScene7Box(this._makeBtnRect, canvasX, canvasY, designX, designY)) {
           // Check if quantity meets requirement
+          console.log(`[QuantityRule] Scene7 dragon: required 1, selected ${this._productionQuantity}`);
           if (this._productionQuantity < SCENE7_REQUIRED_QUANTITY) {
             this._quantityFeedback = `客人要一个龙形糖画，请做满一个。`;
             this._quantityFeedbackTimer = performance.now();

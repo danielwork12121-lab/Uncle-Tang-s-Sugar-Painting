@@ -627,9 +627,16 @@ export class Scene5 {
 
     // Task G: Load success screen image
     const successImg = new Image();
-    successImg.onload = () => { this._successScreenImg = successImg; console.log('Scene5: Success screen image loaded'); };
-    successImg.onerror = () => { console.warn('Scene5: Failed to load success screen image'); };
-    successImg.src = 'Animations/Button 5/Success screen/Success candy drew.png';
+    successImg.onload = () => { 
+      this._successScreenImg = successImg; 
+      console.log('[Scene5Popup] popup image loaded:', successImg.src);
+    };
+    successImg.onerror = () => { 
+      console.error('[Scene5Popup] popup image load error:', successImg.src); 
+    };
+    const popupPath = '/assets/scene5/final/Success candy drew.png';
+    console.log('[Scene5Popup] popup image path:', popupPath);
+    successImg.src = popupPath;
   }
 
   // ================================================================
@@ -2392,12 +2399,13 @@ export class Scene5 {
     // Task B: Render quantity feedback message
     if (this._quantityFeedback && performance.now() - this._quantityFeedbackTimer < 3000) {
       ctx.save();
-      ctx.fillStyle = '#ff8844';
-      ctx.font = 'bold 16px serif';
+      console.log('[QuantityHint] wrong amount hint shown:', this._quantityFeedback);
+      ctx.fillStyle = '#995500';  // Darker, less bright color for readability
+      ctx.font = 'bold 24px serif';  // Larger font size
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.shadowColor = '#ff8844';
-      ctx.shadowBlur = 6;
+      ctx.shadowColor = '#995500';
+      ctx.shadowBlur = 8;
       ctx.fillText(this._quantityFeedback, this.vw / 2, selectorY + btnH / 2 + 60);
       ctx.shadowBlur = 0;
       ctx.restore();
@@ -2735,6 +2743,7 @@ export class Scene5 {
     if (allDone && !this._productionComplete) {
       this._productionComplete = true;
       this._productionAnimating = false;
+      console.log('[Scene5Popup] success popup entered');
       this._showSuccessScreen = true;
       // Task F: Clear produced candies array for clean transition
       this._producedCandies = [];

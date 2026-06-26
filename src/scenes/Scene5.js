@@ -327,7 +327,7 @@ export class Scene5 {
     // Task A: Button 5 background music (looping, quiet)
     this._bgmAudio = null;
     this._bgmStarted = false;
-    const bgmPath = '/assets/scene5/audio/background-music.wav';
+    const bgmPath = '/assets/scene5/audio/background-music.mp3';
     this._bgmAudio = new Audio(bgmPath);
     this._bgmAudio.loop = true;
     this._bgmAudio.volume = SCENE5_BGM_VOLUME;

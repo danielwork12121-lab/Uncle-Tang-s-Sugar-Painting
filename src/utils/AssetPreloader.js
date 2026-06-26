@@ -282,7 +282,7 @@ export const INITIAL_PRELOAD_ASSETS = [
   { src: '/assets/scene2/Backgrounds/without-stove.png', type: 'image' },
   { src: '/assets/scene2/ui/sugar-bar-empty.png', type: 'image' },
   { src: '/assets/scene2/restart/restart.png', type: 'image' },
-  { src: '/assets/scene2/audio/background-music.wav', type: 'audio' },
+  { src: '/assets/scene2/audio/background-music.mp3', type: 'audio' },
   
   // Shared UI assets
   { src: '/assets/ui/hand-pointer.png', type: 'image' },
@@ -297,7 +297,7 @@ export const SCENE2_3_PRELOAD_ASSETS = [
   { src: '/assets/scene3/candy-sheet-finished.png', type: 'image' },
   { src: '/assets/scene3/spoons/beforepour.png', type: 'image' },
   { src: '/assets/scene3/spoons/pouring.png', type: 'image' },
-  { src: '/assets/scene3/audio/background-music.wav', type: 'audio' },
+  { src: '/assets/scene3/audio/background-music.mp3', type: 'audio' },
 ];
 
 /**
@@ -320,8 +320,8 @@ export const SCENE4_5_PRELOAD_ASSETS = [
  */
 export const SCENE6_7_PRELOAD_ASSETS = [
   // Scene6 videos
-  { src: '/assets/scene6/First video open.mov', type: 'video' },
-  { src: '/assets/button6/cutscenes/Connect.MP4', type: 'video' },
+  { src: '/assets/scene6/first-video-open.mp4', type: 'video' },
+  { src: '/assets/button6/cutscenes/connect.mp4', type: 'video' },
   
   // Scene7 assets
   { src: '/assets/scene7/background/with-spoon.png', type: 'image' },

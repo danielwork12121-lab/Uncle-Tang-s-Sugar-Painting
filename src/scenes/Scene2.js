@@ -316,7 +316,7 @@ export class Scene2 {
 
     // --- Cooking background music ---
     try {
-      this.cookingBgMusic = new Audio('/assets/scene2/audio/background-music.wav');
+      this.cookingBgMusic = new Audio('/assets/scene2/audio/background-music.mp3');
       this.cookingBgMusic.volume = 0.25;
       this.cookingBgMusic.loop = true;
       this.cookingBgMusicReady = true;

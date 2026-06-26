@@ -384,7 +384,7 @@ class Game {
   _initScene2Music() {
     if (this._scene2BgMusic) return;
     try {
-      this._scene2BgMusic = new Audio('/assets/scene2/audio/background-music.wav');
+      this._scene2BgMusic = new Audio('/assets/scene2/audio/background-music.mp3');
       this._scene2BgMusic.volume = 0.25;
       this._scene2BgMusic.loop = true;
     } catch (e) { console.warn('[Main] Could not create Scene 2 background music:', e); }
@@ -394,7 +394,7 @@ class Game {
   _initScene3Music() {
     if (this._scene3BgMusic) return;
     try {
-      this._scene3BgMusic = new Audio('/assets/scene3/audio/background-music.wav');
+      this._scene3BgMusic = new Audio('/assets/scene3/audio/background-music.mp3');
       this._scene3BgMusic.volume = 0.28;
       this._scene3BgMusic.loop = true;
     } catch (e) { console.warn('[Main] Could not create Scene 3 background music:', e); }

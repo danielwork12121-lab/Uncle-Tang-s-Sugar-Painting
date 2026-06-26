@@ -2,8 +2,8 @@
  * Scene 6 — Video cutscene after Scene 5 candy painting success
  *
  * Video assets:
- *   public/assets/scene6/First video open.mov
- *   public/assets/button6/cutscenes/Connect.MP4
+ *   public/assets/scene6/first-video-open.mp4
+ *   public/assets/button6/cutscenes/connect.mp4
  *
  * Behavior:
  *   1. Full-screen video player on launch.
@@ -23,8 +23,8 @@
  */
 
 // --- Asset paths served by Vite from /public ---
-const SCENE6_VIDEO_SRC = '/assets/scene6/First video open.mov';
-const SCENE6_CONNECT_VIDEO_SRC = '/assets/button6/cutscenes/Connect.MP4';
+const SCENE6_VIDEO_SRC = '/assets/scene6/first-video-open.mp4';
+const SCENE6_CONNECT_VIDEO_SRC = '/assets/button6/cutscenes/connect.mp4';
 
 export class Scene6 {
   constructor(containerEl, onComplete) {

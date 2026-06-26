@@ -2,15 +2,16 @@
  * Scene 6 — Video cutscene after Scene 5 candy painting success
  *
  * Video assets:
- *   public/assets/scene6/first-video-open.mp4
- *   public/assets/button6/cutscenes/connect.mp4
+ *   public/assets/scene6/scene6-first.mp4 (optimized, 1080p, H.264, faststart)
+ *   public/assets/scene6/scene6-second.mp4 (optimized, 720p, H.264, faststart)
  *
  * Behavior:
  *   1. Full-screen video player on launch.
  *   2. Autoplay if allowed; otherwise "Click to Start" overlay.
  *   3. During video: show "点击任意处跳过" at bottom.
- *   4. When intro video ends, immediately play connect video.
- *   5. When connect video ends, switch to Scene 7.
+ *   4. Preload second video in background when first video starts.
+ *   5. When intro video ends, immediately play connect video.
+ *   6. When connect video ends, switch to Scene 7.
  *
  * Audio:
  *   - Stop Scene 5 background music when Scene 6 starts.
@@ -23,14 +24,18 @@
  */
 
 // --- Asset paths served by Vite from /public ---
-const SCENE6_VIDEO_SRC = '/assets/scene6/first-video-open.mp4';
-const SCENE6_CONNECT_VIDEO_SRC = '/assets/button6/cutscenes/connect.mp4';
+const SCENE6_VIDEO_SRC = '/assets/scene6/scene6-first.mp4';
+const SCENE6_CONNECT_VIDEO_SRC = '/assets/scene6/scene6-second.mp4';
 
 export class Scene6 {
   constructor(containerEl, onComplete) {
     this.container = containerEl;
     this.onComplete = onComplete;
     this._phase = "introVideo";  // State machine: introVideo, connectVideo, finished
+
+    // Preload video element for second video
+    this._preloadVideo = null;
+    this._preloadTimeout = null;
 
     this._build();
   }
@@ -59,20 +64,26 @@ export class Scene6 {
     this.video.preload = 'auto';
 
     // Set video source
+    console.log('[Scene6Video] loading first video:', SCENE6_VIDEO_SRC);
     this.video.src = SCENE6_VIDEO_SRC;
 
+    this.video.addEventListener('loadeddata', () => {
+      console.log('[Scene6Video] first video ready');
+    });
+
     this.video.addEventListener('error', (e) => {
-      console.error('[Scene6] Video failed to load:', SCENE6_VIDEO_SRC, e);
+      console.error('[Scene6Video] video error:', SCENE6_VIDEO_SRC, e);
     });
 
     // When video ends, transition to next video or switch to Scene 7
     this._onVideoEnded = () => {
-      console.log('[Scene6] Video ended, phase:', this._phase);
+      console.log('[Scene6Video] first video ended, phase:', this._phase);
       if (this._phase === "introVideo") {
         // Intro video ended, start connect video immediately
         this._startConnectVideo();
       } else if (this._phase === "connectVideo") {
         // Connect video ended, switch to Scene 7
+        console.log('[Scene6Video] second video ended');
         this._phase = "finished";
         if (this.onComplete) {
           this.onComplete();
@@ -121,12 +132,43 @@ export class Scene6 {
 
     // --- Autoplay ---
     this.video.play().then(() => {
-      console.log('[Scene6] Video started playing');
+      console.log('[Scene6Video] first video started');
+      // Start preloading second video after first video starts playing
+      this._preloadSecondVideo();
     }).catch(() => {
       // Autoplay blocked — show a "Click to Start" overlay
       console.log('[Scene6] Autoplay blocked, showing start overlay');
       this._showStartOverlay();
     });
+  }
+
+  // ================================================================
+  //  Preload second video in background
+  // ================================================================
+
+  _preloadSecondVideo() {
+    console.log('[Scene6Video] preloading second video:', SCENE6_CONNECT_VIDEO_SRC);
+
+    // Create a hidden video element for preloading
+    this._preloadVideo = document.createElement('video');
+    this._preloadVideo.src = SCENE6_CONNECT_VIDEO_SRC;
+    this._preloadVideo.preload = 'auto';
+    this._preloadVideo.style.display = 'none';
+    document.body.appendChild(this._preloadVideo);
+
+    this._preloadVideo.addEventListener('loadeddata', () => {
+      console.log('[Scene6Video] second video ready');
+    });
+
+    this._preloadVideo.addEventListener('error', (e) => {
+      console.error('[Scene6Video] second video error:', SCENE6_CONNECT_VIDEO_SRC, e);
+    });
+
+    // Timeout fallback: if second video doesn't load within 10 seconds,
+    // we'll still try to play it when needed (browser will handle it)
+    this._preloadTimeout = setTimeout(() => {
+      console.log('[Scene6Video] second video preload timeout (will still try to play)');
+    }, 10000);
   }
 
   // ================================================================
@@ -174,7 +216,11 @@ export class Scene6 {
       this._startOverlay.remove();
       this._startOverlay = null;
       this.video.play().then(() => {
-        console.log('[Scene6] Video started playing after user gesture');
+        console.log('[Scene6Video] Video started playing after user gesture');
+        // Start preloading second video after first video starts playing
+        this._preloadSecondVideo();
+      }).catch((e) => {
+        console.error('[Scene6] Video play failed:', e);
       });
     });
 
@@ -188,6 +234,12 @@ export class Scene6 {
   _startConnectVideo() {
     console.log('[Scene6] Starting connect video');
     this._phase = "connectVideo";
+
+    // Clear preload timeout if still pending
+    if (this._preloadTimeout) {
+      clearTimeout(this._preloadTimeout);
+      this._preloadTimeout = null;
+    }
 
     // Remove skip hint from intro video
     if (this.skipHint) {
@@ -206,15 +258,25 @@ export class Scene6 {
     `;
     this.wrapper.appendChild(this.skipHint);
 
+    // Use preloaded video if available, otherwise load from scratch
+    if (this._preloadVideo && this._preloadVideo.readyState >= 2) {
+      console.log('[Scene6Video] Using preloaded second video');
+      // Swap video sources
+      this.video.src = SCENE6_CONNECT_VIDEO_SRC;
+      this.video.load();
+    } else {
+      console.log('[Scene6Video] Loading second video from scratch');
+    }
+
     // Load connect video
     this.video.src = SCENE6_CONNECT_VIDEO_SRC;
     this.video.load();
 
     // Play connect video
     this.video.play().then(() => {
-      console.log('[Scene6] Connect video started playing');
+      console.log('[Scene6Video] second video started');
     }).catch((e) => {
-      console.error('[Scene6] Connect video autoplay failed:', e);
+      console.error('[Scene6Video] Connect video autoplay failed:', e);
       // If autoplay fails, show start overlay for connect video
       this._showConnectStartOverlay();
     });
@@ -265,7 +327,14 @@ export class Scene6 {
       this._startOverlay.remove();
       this._startOverlay = null;
       this.video.play().then(() => {
-        console.log('[Scene6] Connect video started playing after user gesture');
+        console.log('[Scene6Video] Connect video started playing after user gesture');
+      }).catch((e) => {
+        console.error('[Scene6] Connect video play failed:', e);
+        // Don't get stuck - allow click to skip
+        this._phase = "finished";
+        if (this.onComplete) {
+          this.onComplete();
+        }
       });
     });
 
@@ -278,6 +347,18 @@ export class Scene6 {
 
   destroy() {
     console.log('[Scene6] Destroying, phase:', this._phase);
+
+    // Clear preload timeout
+    if (this._preloadTimeout) {
+      clearTimeout(this._preloadTimeout);
+      this._preloadTimeout = null;
+    }
+
+    // Remove preloaded video element
+    if (this._preloadVideo) {
+      this._preloadVideo.remove();
+      this._preloadVideo = null;
+    }
 
     // Remove click handler from wrapper
     if (this.wrapper && this._clickHandler) {

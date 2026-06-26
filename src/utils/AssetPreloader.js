@@ -319,9 +319,9 @@ export const SCENE4_5_PRELOAD_ASSETS = [
  * Scene 6/7 assets to preload in background after Scene4 starts
  */
 export const SCENE6_7_PRELOAD_ASSETS = [
-  // Scene6 videos
-  { src: '/assets/scene6/first-video-open.mp4', type: 'video' },
-  { src: '/assets/button6/cutscenes/connect.mp4', type: 'video' },
+  // Scene6 videos (optimized)
+  { src: '/assets/scene6/scene6-first.mp4', type: 'video' },
+  { src: '/assets/scene6/scene6-second.mp4', type: 'video' },
   
   // Scene7 assets
   { src: '/assets/scene7/background/with-spoon.png', type: 'image' },

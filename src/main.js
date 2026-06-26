@@ -14,6 +14,7 @@ import { Scene7 } from './scenes/Scene7.js';
 import { Scene8 } from './scenes/Scene8.js';
 import { Scene9 } from './scenes/Scene9.js';
 import { AssetPreloader, INITIAL_PRELOAD_ASSETS, SCENE2_3_PRELOAD_ASSETS, SCENE4_5_PRELOAD_ASSETS, SCENE6_7_PRELOAD_ASSETS } from './utils/AssetPreloader.js';
+import { getSceneLoadGate } from './utils/SceneLoadGate.js';
 
 // Set to false to remove dev hotkeys in production
 const enableDevHotkeys = true;
@@ -39,12 +40,20 @@ class Game {
   }
 
   /** Central scene transition function - stops current scene completely, then starts new scene */
-  switchToScene(sceneNumber, options = {}) {
+  async switchToScene(sceneNumber, options = {}) {
     const oldScene = this.currentSceneNumber;
     console.log(`[Game] Switching scene: ${oldScene} → ${sceneNumber}`, options);
 
     // Stop current scene completely
     this._stopCurrentScene();
+
+    // Preload next scene assets (shows loading gate if needed)
+    const loadGate = getSceneLoadGate();
+    try {
+      await loadGate.preload(sceneNumber);
+    } catch (e) {
+      console.warn(`[Game] Preload failed for scene ${sceneNumber}, continuing anyway`, e);
+    }
 
     // Start new scene
     console.log(`[Game] Starting scene ${sceneNumber}`);

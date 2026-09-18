@@ -426,12 +426,24 @@ export class SceneLoadGate {
         this._checkReady();
       });
       
-      // Race against max timeout
-      Promise.race([preloadPromise, minDurationPromise, maxTimeoutPromise]).then(() => {
-        // If max timeout wins, resolve immediately
-        if (!this._preloadComplete || !this._minDurationComplete) {
-          this._forceResolve();
-        }
+      // Never-stuck safety net: independently force-resolves after
+      // maxDurationMs, regardless of preload/minDuration state.
+      //
+      // This used to be `Promise.race([preloadPromise, minDurationPromise,
+      // maxTimeoutPromise])`, which resolved as soon as ANY of the three
+      // settled -- including preloadPromise or minDurationPromise on their
+      // own. For a forceShow scene (e.g. Scene 2's mandatory 10s loading
+      // screen) with already-cached assets, preloadPromise could resolve
+      // in milliseconds, winning the race long before minDurationMs
+      // elapsed; the guard below then read `_minDurationComplete` as still
+      // false and called `_forceResolve()` immediately, bypassing the
+      // forced minimum duration entirely. `_checkReady()`/`_forceResolve()`
+      // both already guard on `this._onReady`, so simply letting the max
+      // timeout resolve independently is correct: whichever path (normal
+      // completion vs. this safety net) finishes first naturally wins, and
+      // the other becomes a no-op.
+      maxTimeoutPromise.then(() => {
+        this._forceResolve();
       });
       
       // Show overlay if forceShow or preload takes >300ms
